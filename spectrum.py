@@ -1,92 +1,104 @@
-import matplotlib.pyplot as plt
-import numpy as np
+# ! /usr/bin/python
 import pyaudio
-from pyqtgraph.Qt import QtGui, QtCore
-import pyqtgraph as pg
 import struct
+import numpy as np
+from time import perf_counter
+import matplotlib.pyplot as plt
 from scipy.fftpack import fft
-import sys
-import time
 
+# PYAUDIO
+p = pyaudio.PyAudio()
+CHUNK = 1024 * 4
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100
 
-class AudioStream(object):
-    def __init__(self):
+# AUDIO IN
+stream = p.open(
+    format=FORMAT,
+    channels=CHANNELS,
+    rate=RATE,
+    input=True,
+    output=True,
+    frames_per_buffer=CHUNK,
+    input_device_index=7                                # selecteer juiste audioinput m.b.v. get_device_info.py voor lagere latency
+)
 
-        # stream constants
-        self.CHUNK = 1024 * 2
-        self.FORMAT = pyaudio.paInt16
-        self.CHANNELS = 1
-        self.RATE = 44100
-        self.pause = False
+# MATPLOTLIB
+y = np.linspace(0, RATE, CHUNK)                         # x-variabele voor plotting
 
-        # stream object
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(
-            format=self.FORMAT,
-            channels=self.CHANNELS,
-            rate=self.RATE,
-            input=True,
-            output=True,
-            frames_per_buffer=self.CHUNK,
-        )
-        self.init_plots()
-        self.start_plot()
+fig, ax = plt.subplots(1, figsize=(15, 7))              # matplotlib afmetingen en assen
+line2d = plt.plot()
 
-    def init_plots(self):
+line_fft, = ax.semilogx(                                # x as in semilogx
+    y, np.random.rand(CHUNK), '-', lw=2)
 
-        # x variables for plotting
-        x = np.linspace(0, self.RATE, self.CHUNK)
+plt.setp(ax, yticks=[0, 1], )                           # hoogte y-as
 
-        # create matplotlib figure and axes
-        self.fig, ax = plt.subplots(1, figsize=(15, 7))
-        self.line2d = plt.plot()
+ax.set_xlim(20, RATE / 2)                               # format spectrum axes
 
-        # create semilogx line for spectrum
-        self.line_fft, = ax.semilogx(
-            x, np.random.rand(self.CHUNK), '-', lw=2)
+mngr = plt.get_current_fig_manager()
+mngr.window.setGeometry(5, 120, 1910, 1070)
+plt.show(block=False)
 
-        # hoogte y-as
-        plt.setp(ax, yticks=[0, 1],)
+frame_count = 0
 
-        # format spectrum axes
-        ax.set_xlim(20, self.RATE / 2)
+while True:
+    # BINARY DATA
+    data_bin = stream.read(CHUNK)                                   # binary data
+    data = struct.unpack('{n}h'.format(n=CHUNK), data_bin)          # integer data
 
-        # show axes
-        thismanager = plt.get_current_fig_manager()
-        thismanager.window.setGeometry(5, 120, 1910, 1070)
-        plt.show(block=False)
+    # INTEGER DATA NAAR HERTZ
+    x = np.fft.fft(data)                                            # numpy functie voor Fast Fourier Transform algoritme
+    freqs = np.fft.fftfreq(len(x))                                  # return
+    index = np.argmax(np.abs(x))                                    # index
+    freq = freqs[index]
+    hz = int(freq * RATE)
+    # print(hz)
 
-    def start_plot(self):
+    # MATPLOTLIB
+    yf = fft(data)                                                  # updaten van line
+    line_fft.set_ydata(
+        np.abs(yf[0:CHUNK]) / (128 * CHUNK))
 
-        print('stream started')
-        frame_count = 0
-        start_time = time.time()
-
-        while not self.pause:
-            data = self.stream.read(self.CHUNK)
-            data_int = struct.unpack(str(2 * self.CHUNK) + 'B', data)
-            data_np = np.array(data_int, dtype='b')[::2] + 128
-            # play audio
-            self.stream.write(data)
-
-
-
-            # compute FFT and update line
-            yf = fft(data_int)
-            self.line_fft.set_ydata(
-                np.abs(yf[0:self.CHUNK]) / (128 * self.CHUNK))
-
-            # update figure canvas
-            self.fig.canvas.draw()
-            self.fig.canvas.flush_events()
-            frame_count += 1
-
-        else:
-            self.fr = frame_count / (time.time() - start_time)
-            print('average frame rate = {:.0f} FPS'.format(self.fr))
+    fig.canvas.draw()                                               # update figure canvas
+    fig.canvas.flush_events()
+    frame_count += 1
 
 
 
 
-if __name__ == '__main__':
-    AudioStream()
+    # FREQUENCY RANGES
+    def freq_range():
+
+        if hz > 16 and hz < 60:                                         # Sub-bass	        20 to 60 Hz
+            print('Sub-bass (' + str(hz) + ' Hz)')
+        if hz > 61 and hz < 250:                                        # Bass	            60 to 250 Hz
+            print('Bass (' + str(hz) + ' Hz)')
+        if hz > 251 and hz < 500:                                       # Low midrange	    250 to 500 Hz
+            print('Low midrange (' + str(hz) + ' Hz)')
+        if hz > 501 and hz < 2000:                                      # Midrange	        500 Hz to 2 kHz
+            print('Midrange (' + str(hz) + ' Hz)')
+        if hz > 2001 and hz < 4000:                                     # Upper midrange	2 to 4 kHz
+            print('Upper midrange (' + str(hz) + ' Hz)')
+        if hz > 4001 and hz < 6000:                                     # Presence	        4 to 6 kHz
+            print('Presence (' + str(hz) + ' Hz)')
+        if hz > 6001 and hz < 20000:                                    # Brilliance	    6 to 20 kHz
+            print('Brilliance (' + str(hz) + ' Hz)')
+
+
+    freq_range()
+
+    '''
+    kickfreqrange = hz > 201 and hz < 500
+    t1 = perf_counter()
+    def beats_per_minute():  # bpm calculatie is me niet gelukt
+        t = perf_counter()
+        bpm = 60 / (t - t1)
+        print(bpm)
+  # beats_per_minute()
+    '''
+
+    # play audio
+    # stream.write(data_bin)                    # comment uit als je underrun errors krijgt.
+
