@@ -1,0 +1,6 @@
+pyaudio
+struct
+numpy
+time
+matplotlib
+scipy.fftpack
