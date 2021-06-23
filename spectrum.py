@@ -46,7 +46,7 @@ frame_count = 0
 while True:
     # BINARY DATA
     data_bin = stream.read(CHUNK)                                   # binary data
-    data = struct.unpack('{n}h'.format(n=CHUNK), data_bin)          # integer data
+    data = struct.unpack('{n}h'.format(n=CHUNK), stream.read(CHUNK))          # integer data
 
     # INTEGER DATA NAAR HERTZ
     x = np.fft.fft(data)                                            # numpy functie voor Fast Fourier Transform algoritme

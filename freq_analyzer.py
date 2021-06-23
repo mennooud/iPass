@@ -81,4 +81,4 @@ while True:
     # beats_per_minute()
 
     # play audio
-    stream.write(data_bin)  # comment uit als je underrun errors krijgt.
+    # stream.write(data_bin)  # comment uit als je underrun errors krijgt.
