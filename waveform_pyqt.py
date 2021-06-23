@@ -36,7 +36,7 @@ class Audio(object):
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 44100
-        self.CHUNK = 1024 * 2
+        self.CHUNK = 512 * 2
 
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(
@@ -69,6 +69,7 @@ class Audio(object):
         wf_data = struct.unpack(str(2 * self.CHUNK) + 'B', wf_data)
         wf_data = np.array(wf_data, dtype='b')[::2] + 128
         self.set_plotdata(name='waveform', data_x=self.x, data_y=wf_data,)
+        self.stream.write(wf_data)
 
 
     def animation(self):
