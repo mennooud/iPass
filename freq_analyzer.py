@@ -1,16 +1,14 @@
 # ! /usr/bin/python
-import sys
-
 import pyaudio
 import struct
 import numpy as np
-import wave
 from time import perf_counter
 
 
 # PYAUDIO
 p = pyaudio.PyAudio()
 CHUNK = 1024 * 4
+WIDTH = 2
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -28,21 +26,15 @@ stream = p.open(
 
 while True:
     # BINARY DATA
-    data = stream.read(CHUNK)                                   # binary data
+    data_bin = stream.read(CHUNK)                                   # binary data
+    data = struct.unpack('{n}h'.format(n=CHUNK), data_bin)          # integer data
 
-    data_int = struct.unpack('{n}h'.format(n=CHUNK), data)      # integer data
-    #data_int = struct.unpack(str(2 * CHUNK) + 'B', data)
-
-    data_np = np.array(data_int, dtype='b')[::2] + 128          # data in array
-
-
-    # binary data to Hertz
-    w = np.fft.fft(data_int)                                    # numpy functie voor Fast Fourier Transform algoritme
-    freqs = np.fft.fftfreq(len(w))                              # return
-    idx = np.argmax(np.abs(w))                                  # index
-    freq = freqs[idx]
+    # INTEGER DATA NAAR HERTZ
+    x = np.fft.fft(data)                                        # numpy functie voor Fast Fourier Transform algoritme
+    freqs = np.fft.fftfreq(len(x))                              # return
+    index = np.argmax(np.abs(x))                                # index
+    freq = freqs[index]
     hz = int(freq * RATE)
-    # if hz < 130 and hz > 125:
     # print(hz)
 
 
@@ -75,13 +67,18 @@ while True:
             print('Brilliance ('+ str(hz) +' Hz)')
         
 
-    #freq_range()
-    def beats_per_minute():
-        if hz > 130 and hz < 500:
-            print('kickdrum')
-    beats_per_minute()
+    freq_range()
+
+    kickfreqrange = hz > 201 and hz < 500
+    t1 = perf_counter()
+    def beats_per_minute():                                     # bpm calculatie is me niet gelukt
+        t = perf_counter()
+        bpm = 60 / (t - t1)
+        print(bpm)
+
+    # beats_per_minute()
+
     # play audio
-    stream.write(data)
-    #stream.write(data_np)
+    stream.write(data_bin)                                      # comment uit als je underrun errors krijgt.
 
 
